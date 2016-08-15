@@ -4,9 +4,9 @@ import re
 bl_info = {
     "name": "Viewport Rename",
     "author": "poor",
-    "version": (0, 1),
+    "version": (0, 2),
     "blender": (2, 77, 0),
-    "location": "3D View > Ctrl + R",
+    "location": "3D View > Ctrl+R",
     "category": "3D View"
 }
  
