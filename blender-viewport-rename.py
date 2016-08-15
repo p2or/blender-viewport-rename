@@ -9,35 +9,21 @@ bl_info = {
     "location": "3D View > Ctrl + R",
     "category": "3D View"
 }
-
-class ViewportRenameSettings(bpy.types.PropertyGroup):
-    name = bpy.props.StringProperty(name="New name")
-
+ 
 class ViewportRenameOperator(bpy.types.Operator):
     """Rename Objects in 3d View"""
     bl_idname = "view3d.viewport_rename"
-    bl_label = "Viewport Renamer"
+    bl_label = "Viewport Rename"
     bl_options = {'REGISTER', 'UNDO'}
-
+    type = bpy.props.StringProperty()
+    
     @classmethod
     def poll(cls, context):
         return (bool(context.selected_objects))
 
-    def invoke(self, context, event):
-        scn = context.scene
-        scn.viewport_rename.name = context.active_object.name
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        scn = context.scene
-        layout = self.layout
-        col = layout.column()
-        col.prop(scn.viewport_rename, "name", expand=True)
-
     def execute(self, context):
         scn = context.scene
-        user_input = scn.viewport_rename.name
-
+        user_input = self.type
         reverse = False
         if user_input.endswith("#r"):
             reverse = True
@@ -65,6 +51,17 @@ class ViewportRenameOperator(bpy.types.Operator):
             self.report({'INFO'}, "No input, operation cancelled")
             return {'CANCELLED'}
 
+    def invoke(self, context, event):
+        wm = context.window_manager
+        self.type = context.active_object.name
+        #return wm.invoke_popup(self, width=400, height=200)
+        return wm.invoke_props_dialog(self)
+ 
+    def draw(self, context):
+        row = self.layout
+        row.prop(self, "type", text="New name")
+
+
 # ------------------------------------------------------------------------
 #    register and unregister functions
 # ------------------------------------------------------------------------
@@ -73,7 +70,6 @@ addon_keymaps = []
 
 def register():
     bpy.utils.register_module(__name__)
-    bpy.types.Scene.viewport_rename = bpy.props.PointerProperty(type=ViewportRenameSettings)
 
     # handle the keymap
     wm = bpy.context.window_manager
