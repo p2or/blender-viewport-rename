@@ -1,6 +1,6 @@
 ### Viewport Rename
 
-A simple Add-on for Blender to rename selected objects in *3d View*.
+A simple Blender Add-on to rename selected objects in *3d View*.
 
 Once the Add-on is enabled, you can press <kbd>Ctrl</kbd><kbd>R</kbd> to enter a 'new name' for the *active object*. In order to speed up the process you can hit <kbd>Return</kbd> and <kbd>O</kbd> to confirm afterwards.
 
