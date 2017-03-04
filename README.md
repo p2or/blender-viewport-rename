@@ -2,7 +2,7 @@
 
 A simple Blender Add-on to rename selected objects in *3d View*.
 
-Once the Add-on is enabled, you can press <kbd>Ctrl</kbd><kbd>R</kbd> to enter a 'new name' for the *active object*. In order to speed up the process you can hit <kbd>Return</kbd> and <kbd>O</kbd> to confirm:
+Once the Add-on is enabled, you can press <kbd>Ctrl</kbd><kbd>R</kbd> to enter a 'new name' for the *active object* as well as rename its data block (optional). In order to speed up the process you can hit <kbd>Return</kbd> followed by <kbd>O</kbd> to confirm, after typing the 'new name':
 
 ![intro](https://i.stack.imgur.com/dAdHN.gif)
 
