@@ -22,10 +22,13 @@ import re
 
 bl_info = {
     "name": "Viewport Rename",
-    "author": "poor",
-    "version": (0, 3),
+    "author": "Christian Brinkmann (p2or)",
+    "version": (0, 4),
     "blender": (2, 77, 0),
     "location": "3D View > Ctrl+R",
+    "warning": "", # used for warning icon and text in addons panel
+    "wiki_url": "https://github.com/p2or/blender-viewport-rename",
+    "tracker_url": "https://github.com/p2or/blender-viewport-rename/issues",
     "category": "3D View"
 }
 
@@ -82,7 +85,7 @@ class ViewportRenameOperator(bpy.types.Operator):
 
     def draw(self, context):
         row = self.layout
-        row.prop(self, "type", text="New name")
+        row.prop(self, "type", text="New Name")
         row.prop(self, "data_flag", text="Rename Data-Block")
 
 
@@ -92,8 +95,8 @@ class ViewportRenameOperator(bpy.types.Operator):
 
 addon_keymaps = []
 
-
 def register():
+    addon_keymaps.clear()
     bpy.utils.register_module(__name__)
 
     # handle the keymap
@@ -104,14 +107,12 @@ def register():
         kmi = km.keymap_items.new(ViewportRenameOperator.bl_idname, type='R', value='PRESS', ctrl=True)
         addon_keymaps.append((km, kmi))
 
-
 def unregister():
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
 
     bpy.utils.unregister_module(__name__)
-    del bpy.types.Scene.viewport_rename
 
 if __name__ == "__main__":
     register()
