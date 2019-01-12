@@ -23,8 +23,8 @@ import re
 bl_info = {
     "name": "Viewport Rename",
     "author": "Christian Brinkmann (p2or)",
-    "version": (0, 4),
-    "blender": (2, 77, 0),
+    "version": (0, 5),
+    "blender" : (2, 80, 0),
     "location": "3D View > Ctrl+R",
     "warning": "", # used for warning icon and text in addons panel
     "wiki_url": "https://github.com/p2or/blender-viewport-rename",
@@ -38,8 +38,8 @@ class ViewportRenameOperator(bpy.types.Operator):
     bl_idname = "view3d.viewport_rename"
     bl_label = "Viewport Rename"
     bl_options = {'REGISTER', 'UNDO'}
-    type = bpy.props.StringProperty()
-    data_flag = bpy.props.BoolProperty(default=False)
+    type : bpy.props.StringProperty()
+    data_flag : bpy.props.BoolProperty(default=False)
 
     @classmethod
     def poll(cls, context):
@@ -96,8 +96,11 @@ class ViewportRenameOperator(bpy.types.Operator):
 addon_keymaps = []
 
 def register():
+    from bpy.utils import register_class
+
     addon_keymaps.clear()
-    bpy.utils.register_module(__name__)
+    register_class(ViewportRenameOperator)
+    # bpy.utils.register_module(__name__)
 
     # handle the keymap
     wm = bpy.context.window_manager
@@ -108,11 +111,14 @@ def register():
         addon_keymaps.append((km, kmi))
 
 def unregister():
+    from bpy.utils import unregister_class
+
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
 
-    bpy.utils.unregister_module(__name__)
+    unregister_class(ViewportRenameOperator)
+    # bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()
