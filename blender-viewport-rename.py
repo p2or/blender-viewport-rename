@@ -34,19 +34,21 @@ bl_info = {
 
 
 class ViewportRenameOperator(bpy.types.Operator):
-    """Rename Objects in 3D View"""
+    """Rename selected object(s) in 3D View"""
     bl_idname = "view3d.viewport_rename"
     bl_label = "Viewport Rename"
     bl_options = {'REGISTER', 'UNDO'}
-    type : bpy.props.StringProperty()
-    data_flag : bpy.props.BoolProperty(default=False)
+    bl_property = "new_name"
+
+    new_name : bpy.props.StringProperty(name="New Name")
+    data_flag : bpy.props.BoolProperty(name="Rename Data-Block", default=False)
 
     @classmethod
     def poll(cls, context):
         return bool(context.selected_objects)
 
     def execute(self, context):
-        user_input = self.type
+        user_input = self.new_name
         reverse = False
         if user_input.endswith("#r"):
             reverse = True
@@ -80,17 +82,20 @@ class ViewportRenameOperator(bpy.types.Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
-        self.type = context.active_object.name
-        return wm.invoke_props_dialog(self)
+        dialog_size = 450*context.user_preferences.system.pixel_size
+        self.new_name = context.active_object.name
+        return wm.invoke_props_dialog(self, width=dialog_size)
 
     def draw(self, context):
         row = self.layout
-        row.prop(self, "type", text="New Name")
-        row.prop(self, "data_flag", text="Rename Data-Block")
+        row.row()
+        row.prop(self, "new_name")
+        row.prop(self, "data_flag")
+        row.row()
 
 
 # ------------------------------------------------------------------------
-#    register and unregister functions
+#    register, unregister and hotkey
 # ------------------------------------------------------------------------
 
 addon_keymaps = []
@@ -100,7 +105,6 @@ def register():
 
     addon_keymaps.clear()
     register_class(ViewportRenameOperator)
-    # bpy.utils.register_module(__name__)
 
     # handle the keymap
     wm = bpy.context.window_manager
@@ -118,7 +122,6 @@ def unregister():
     addon_keymaps.clear()
 
     unregister_class(ViewportRenameOperator)
-    # bpy.utils.unregister_module(__name__)
 
 if __name__ == "__main__":
     register()
