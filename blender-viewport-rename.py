@@ -79,13 +79,14 @@ class ViewportRenameOperator(bpy.types.Operator):
         else:
             self.report({'INFO'}, "No input, operation cancelled")
             return {'CANCELLED'}
-
+    
     def invoke(self, context, event):
         wm = context.window_manager
         dpi = context.preferences.system.pixel_size
         ui_size = context.preferences.system.ui_scale
         dialog_size = 450 * dpi * ui_size
-        self.new_name = context.active_object.name
+        if context.active_object:
+            self.new_name = context.active_object.name
         return wm.invoke_props_dialog(self, width=dialog_size)
 
     def draw(self, context):
