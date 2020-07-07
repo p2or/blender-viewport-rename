@@ -23,8 +23,9 @@ import re
 bl_info = {
     "name": "Viewport Rename",
     "author": "Christian Brinkmann (p2or)",
-    "version": (0, 6),
-    "blender" : (2, 80, 0),
+    "description": "Rename, find and select Objects directly in the Viewport",
+    "version": (0, 7),
+    "blender" : (2, 81, 0),
     "location": "3D View > Ctrl+R",
     "warning": "", # used for warning icon and text in addons panel
     "wiki_url": "https://github.com/p2or/blender-viewport-rename",
@@ -32,9 +33,12 @@ bl_info = {
     "category": "3D View"
 }
 
+# ------------------------------------------------------------------------
+#    Operator(s)
+# ------------------------------------------------------------------------
 
 class VIEW3D_OT_viewport_rename(bpy.types.Operator):
-    """Rename selected object(s) in 3D View"""
+    """Rename, find and select Objects directly in the Viewport"""
     bl_idname = "view3d.viewport_rename"
     bl_label = "Viewport Rename"
     bl_options = {'REGISTER', 'UNDO'}
@@ -169,19 +173,21 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
         layout.row()
 
 
+def draw_viewport_rename_menu(self, context):
+    layout = self.layout #layout.separator()
+    layout.operator(VIEW3D_OT_viewport_rename.bl_idname, text="Seek and Rename",  icon='FONTPREVIEW')
+
+
 # ------------------------------------------------------------------------
-#    register, unregister and hotkeys
+#    Register, unregister and hotkeys
 # ------------------------------------------------------------------------
 
 addon_keymaps = []
 
 def register():
-    from bpy.utils import register_class
-
     addon_keymaps.clear()
-    register_class(VIEW3D_OT_viewport_rename)
+    bpy.utils.register_class(VIEW3D_OT_viewport_rename)
 
-    # handle the keymap
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
@@ -189,14 +195,17 @@ def register():
         kmi = km.keymap_items.new(VIEW3D_OT_viewport_rename.bl_idname, type='R', value='PRESS', ctrl=True)
         addon_keymaps.append((km, kmi))
 
+    bpy.types.VIEW3D_PT_view3d_properties.append(draw_viewport_rename_menu)
+
+
 def unregister():
-    from bpy.utils import unregister_class
+    bpy.types.VIEW3D_PT_view3d_properties.remove(draw_viewport_rename_menu)
 
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
 
-    unregister_class(VIEW3D_OT_viewport_rename)
+    bpy.utils.unregister_class(VIEW3D_OT_viewport_rename)
 
 if __name__ == "__main__":
     register()
