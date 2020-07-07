@@ -109,10 +109,12 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
                     # should be replaced with visible_set(True) when available
                     if obj.visible_get():
                         obj.select_set(True)
-                self.report({'INFO'}, "Found {} objects".format(len(candidates)))
+                cand_names = [n.name for n in candidates]
+                self.report({'INFO'}, "Found {} object(s): {}".format(len(cand_names), ", ".join(cand_names)))
                 return {'FINISHED'}
 
             else:
+
                 bpy.ops.object.select_all(action='DESELECT')
                 self.report({'INFO'}, "Nothing found.")
                 return {'CANCELLED'}
@@ -133,7 +135,10 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
                 self.report({'INFO'}, "Renamed {} objects".format(len(candidates)))
                 return {'FINISHED'}
             else:
-                self.report({'INFO'}, "Nothing found.")
+                if context.selected_objects:
+                    self.report({'INFO'}, 'No object names in scene containing "{}"'.format(self.new_name))
+                else:
+                    self.report({'INFO'}, "Nothing selected in the viewport.")
                 return {'CANCELLED'}
 
 
