@@ -147,13 +147,9 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
 
 
     def invoke(self, context, event):
-        wm = context.window_manager
-        dpi = context.preferences.system.pixel_size
-        ui_size = context.preferences.system.ui_scale
-        dialog_size = 450 * dpi * ui_size
         if context.active_object:
             self.new_name = context.active_object.name
-        return wm.invoke_props_dialog(self, width=dialog_size)
+        return context.window_manager.invoke_props_dialog(self, width=450)
 
     def draw(self, context):
         txt_name = "New Name" if self.mode == "RENAME" else "Search for"
