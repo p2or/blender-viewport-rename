@@ -169,8 +169,9 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
         layout.row()
 
 
-def draw_viewport_rename_menu(self, context):
-    layout = self.layout #layout.separator()
+def draw_viewport_rename_obj_menu(self, context):
+    layout = self.layout 
+    layout.separator()
     layout.operator(VIEW3D_OT_viewport_rename.bl_idname, text="Seek and Rename",  icon='FONTPREVIEW')
 
 
@@ -191,11 +192,11 @@ def register():
         kmi = km.keymap_items.new(VIEW3D_OT_viewport_rename.bl_idname, type='R', value='PRESS', ctrl=True)
         addon_keymaps.append((km, kmi))
 
-    bpy.types.VIEW3D_PT_view3d_properties.append(draw_viewport_rename_menu)
+    bpy.types.VIEW3D_MT_object.append(draw_viewport_rename_obj_menu)
 
 
 def unregister():
-    bpy.types.VIEW3D_PT_view3d_properties.remove(draw_viewport_rename_menu)
+    bpy.types.VIEW3D_MT_object.remove(draw_viewport_rename_obj_menu)
 
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
