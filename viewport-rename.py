@@ -24,7 +24,7 @@ bl_info = {
     "name": "Viewport Rename",
     "author": "Christian Brinkmann (p2or)",
     "description": "Rename, find and select Objects directly in the Viewport",
-    "version": (0, 7),
+    "version": (0, 8),
     "blender" : (2, 81, 0),
     "location": "3D View > Ctrl+R",
     "warning": "", # used for warning icon and text in addons panel
@@ -44,10 +44,11 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     bl_property = "new_name"
 
-    new_name : bpy.props.StringProperty(name="New Name")
-    substitute : bpy.props.StringProperty(name="Replace")
-    data_flag : bpy.props.BoolProperty(name="Rename Data-Block", default=False)
-    mode : bpy.props.EnumProperty(name="Mode", description="Set the Mode",
+    new_name: bpy.props.StringProperty(name="New Name")
+    start: bpy.props.IntProperty(name="Start", default=1)
+    substitute: bpy.props.StringProperty(name="Replace")
+    data_flag: bpy.props.BoolProperty(name="Rename Data-Block", default=False)
+    mode: bpy.props.EnumProperty(name="Mode", description="Set the Mode",
         items = [('RENAME', "Rename", ""),
                 ('RESEARCH', "Search & Replace", ""),
                 ('SEARCH', "Search & Select", "")])
@@ -67,21 +68,22 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
         
         if self.mode == 'RENAME':
             reverse = False
-            if user_input.endswith("#r"):
+            if "#r" in user_input:
                 reverse = True
-                user_input = user_input[:-1]
+                user_input = user_input.replace("#r", "#")
 
-            suff = re.findall("#+$", user_input)
-            if user_input and suff:
-                number = ('%0'+str(len(suff[0]))+'d', len(suff[0]))
-                real_name = re.sub("#", '', user_input)           
-
+            if "#" in user_input:
                 objs = context.selected_objects[::-1] if reverse else context.selected_objects
                 names_before = [n.name for n in objs]
-                for c, o in enumerate(objs, start=1):
-                    o.name = (real_name + (number[0] % c))
+                hashes = user_input.count("#")
+
+                for c, o in enumerate(objs, start=self.start):
+                    number = "{n:0{digits}d}".format(n=c, digits=hashes)
+                    o.name = user_input.replace("#"*hashes, number)
+
                     if self.data_flag and o.data is not None:
-                        o.data.name = (real_name + (number[0] % c))
+                        o.data.name = o.name
+                
                 self.report({'INFO'}, "Renamed {}".format(", ".join(names_before)))
                 return {'FINISHED'}
 
@@ -151,20 +153,27 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
             self.new_name = context.active_object.name
         return context.window_manager.invoke_props_dialog(self, width=450)
 
+    def check(self, context):
+        return True
+    
     def draw(self, context):
         txt_name = "New Name" if self.mode == "RENAME" else "Search for"
         txt_data = "Rename Data-Block" if self.mode != "SEARCH" else "Find Data-Block"
 
         layout = self.layout
-        layout.row()
-        layout.prop(self, "mode", expand=True)
-        layout.row()
-        layout.prop(self, "new_name", text=txt_name)
+        layout.row().prop(self, "mode", expand=True)
+
+        spl = layout.split(factor=.75, align=True)
+        spl.prop(self, "new_name", text=txt_name)
+        col = spl.column(align=True)
+        col.prop(self, "start", text="Start at:")
+        col.active = "#" in self.new_name
 
         if self.mode == "RESEARCH":
             rep = layout.row()
             rep.prop(self, "substitute", text="Replace with")
 
+        layout.row()
         layout.prop(self, "data_flag", text=txt_data)
         layout.row()
 
@@ -172,7 +181,7 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
 def draw_viewport_rename_obj_menu(self, context):
     layout = self.layout 
     layout.separator()
-    layout.operator(VIEW3D_OT_viewport_rename.bl_idname, text="Seek and Rename",  icon='FONTPREVIEW')
+    layout.operator(VIEW3D_OT_viewport_rename.bl_idname, text="Viewport Rename",  icon='FONTPREVIEW')
 
 
 # ------------------------------------------------------------------------
