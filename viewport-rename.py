@@ -28,7 +28,7 @@ bl_info = {
     "blender" : (2, 81, 0),
     "location": "3D View > Ctrl+R",
     "warning": "", # used for warning icon and text in addons panel
-    "wiki_url": "https://github.com/p2or/blender-viewport-rename",
+    "doc_url": "https://github.com/p2or/blender-viewport-rename",
     "tracker_url": "https://github.com/p2or/blender-viewport-rename/issues",
     "category": "3D View"
 }
