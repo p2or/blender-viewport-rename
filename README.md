@@ -8,11 +8,11 @@ A simple Blender Add-on to rename the selected object as well as batch rename se
 
 Once the Add-on is enabled, you can press <kbd>Ctrl</kbd><kbd>R</kbd> to enter a 'new name' for the *active object* as well as rename its data block (optional). In order to speed up the process you can hit <kbd>Return</kbd> followed by <kbd>O</kbd> to confirm, after typing the 'new name':
 
-![intro](https://i.stack.imgur.com/dAdHN.gif)
+![intro](https://i.sstatic.net/dAdHN.gif)
 
 The Add-on also allows to *batch rename* all objects in the current selection. The suffix is determined by the given number of hash characters at the end of the string. You can simply type `Cube-###` to get *'Cube-001'*, *'Cube-002'* and *'Cube-003'* as well as `Cube-###r` to get a reversed list.
 
-![intro](http://i.stack.imgur.com/2mDxx.gif)
+![intro](https://i.sstatic.net/2mDxx.gif)
 
 #### Installation
 
