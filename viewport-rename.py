@@ -18,24 +18,26 @@
 # <pep8 compliant>
 
 import bpy
-import re
+import fnmatch
 
 bl_info = {
     "name": "Viewport Rename",
     "author": "Christian Brinkmann (p2or)",
     "description": "Rename, find and select Objects directly in the Viewport",
-    "version": (0, 8),
-    "blender" : (2, 81, 0),
-    "location": "3D View > Ctrl+R",
-    "warning": "", # used for warning icon and text in addons panel
+    "version": (0, 9, 0),
+    "blender": (3, 6, 0),
+    "location": "3D View > Ctrl+R, Ctrl+F",
+    "warning": "",  # used for warning icon and text in addons panel
     "doc_url": "https://github.com/p2or/blender-viewport-rename",
     "tracker_url": "https://github.com/p2or/blender-viewport-rename/issues",
     "category": "3D View"
 }
 
-# ------------------------------------------------------------------------
+
+# -------------------------------------------------------------------
 #    Operator(s)
-# ------------------------------------------------------------------------
+# -------------------------------------------------------------------
+
 
 class VIEW3D_OT_viewport_rename(bpy.types.Operator):
     """Rename, find and select Objects directly in the Viewport"""
@@ -48,126 +50,238 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
     start: bpy.props.IntProperty(name="Start", default=1)
     substitute: bpy.props.StringProperty(name="Replace")
     data_flag: bpy.props.BoolProperty(name="Rename Data-Block", default=False)
-    mode: bpy.props.EnumProperty(name="Mode", description="Set the Mode",
-        items = [('RENAME', "Rename", ""),
-                ('RESEARCH', "Search & Replace", ""),
-                ('SEARCH', "Search & Select", "")])
+    reverse_flag: bpy.props.BoolProperty(name="Reverse List", default=False)
+    scope: bpy.props.EnumProperty(
+        name="Scope",
+        description="Select the scope of the operation",
+        items=[
+            ('SELECTED', "Selected Objects",
+             "Operate only on selected objects"),
+            ('SCENE', "All Objects in Scene",
+             "Operate on all objects in the scene"),
+        ],
+        default='SCENE'
+    )
+    mode: bpy.props.EnumProperty(
+        name="Mode",
+        description="Select the operation mode",
+        items=[
+            ('RENAME', "Rename",
+             "Batch rename selected objects"),
+            ('SEARCH', "Find & Select",
+             "Find and select objects in the scene by given name "
+             "(supports wildcards e.g. #, *, ? for searching)"),
+            ('RESEARCH', "Find & Replace",
+             "Replace text within object names in the scene "
+             "(supports wildcards e.g. #, *, ? for searching)"),
+        ],
+        default='RENAME'
+    )
+
+    
+    def set_property(self, target_object, property_name, value):
+        """
+        Safely assign a value to an object or data-block,
+        avoiding Depsgraph updates if unchanged, and catching
+        errors if the property is read-only (e.g. linked data).
+        """
+        prop = getattr(target_object, property_name, None)
+        if prop is not None:
+            try:
+                if prop != value: 
+                    setattr(target_object, property_name, value)
+                    return True
+            except (AttributeError, RuntimeError):
+                # Fails safely on Linked Data or pure read-only properties
+                pass
+        return False
 
     @classmethod
     def poll(cls, context):
-        return bool(context.active_object) #selected_objects
+        return bool(context.active_object)
 
     def execute(self, context):
-        user_input = self.new_name
-        
-        if not user_input:
-            self.report({'INFO'}, "No input, operation cancelled")
-            return {'CANCELLED'}
-        
+        user_input = self.new_name.strip()
+
+        selected_objects = sorted(
+            context.selected_objects, 
+            key=lambda o: o.name, 
+            reverse=self.reverse_flag
+        )
+
         # -------------------------------------------------------
-        
+
         if self.mode == 'RENAME':
-            reverse = False
+            
+            if not user_input and not self.data_flag:
+                self.report({'INFO'}, "No input, rename operation cancelled.")
+                return {'CANCELLED'}
+
             if "#r" in user_input:
-                reverse = True
+                self.reverse_flag = True
                 user_input = user_input.replace("#r", "#")
+            
+            hashes = user_input.count("#")
+            hash_str = "#" * hashes
+            target_objects = (
+                [context.active_object] if hashes == 0 else selected_objects
+            )
+            renamed = []
 
-            if "#" in user_input:
-                objs = context.selected_objects[::-1] if reverse else context.selected_objects
-                names_before = [n.name for n in objs]
-                hashes = user_input.count("#")
+            for c, o in enumerate(target_objects, start=self.start):
+                user_name = user_input
+                if hashes > 0:
+                    user_name = user_input.replace(hash_str, str(c).zfill(hashes))
 
-                for c, o in enumerate(objs, start=self.start):
-                    number = "{n:0{digits}d}".format(n=c, digits=hashes)
-                    o.name = user_input.replace("#"*hashes, number)
-
-                    if self.data_flag and o.data is not None:
-                        o.data.name = o.name
+                changed = False
+                original_name = o.name
                 
-                self.report({'INFO'}, "Renamed {}".format(", ".join(names_before)))
-                return {'FINISHED'}
+                if user_name:
+                    if self.set_property(o, "name", user_name):
+                        changed = True
+                
+                if self.data_flag:  # Copy the new name to the datablock
+                    if self.set_property(o.data, "name", o.name):
+                        changed = True
+                
+                if changed:
+                    renamed.append(original_name)
 
-            elif user_input:
-                old_name = context.active_object.name
-                context.active_object.name = user_input
-                if self.data_flag and context.active_object.data is not None:
-                    context.active_object.data.name = user_input
-                self.report({'INFO'}, "{} renamed to {}".format(old_name, user_input))
-                return {'FINISHED'}
-        
+            if renamed:
+                msg = "Renamed {}".format(", ".join(renamed))
+            else:
+                msg = "Skipped (possibly due to no name changes, or linked data)."
+            
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
+
         # -------------------------------------------------------
-        
-        elif self.mode == 'SEARCH':
-            candidates = []
-            if self.data_flag:
-                for obj in context.scene.objects:
-                    if obj.data is not None and self.new_name in obj.data.name:
-                        candidates.append(obj)
-            else:
-                for obj in context.scene.objects:
-                    if self.new_name in obj.name:
-                        candidates.append(obj)
 
-            if candidates:
-                bpy.ops.object.select_all(action='DESELECT')
-                for obj in candidates:
-                    # limited by current API state,
-                    # should be replaced with visible_set(True) when available
-                    if obj.visible_get():
-                        obj.select_set(True)
-                cand_names = [n.name for n in candidates]
-                self.report({'INFO'}, "Found {} object(s): {}".format(len(cand_names), ", ".join(cand_names)))
-                return {'FINISHED'}
+        # Convert '#' to '?' to allow hash-based wildcard searching
+        if "#" in user_input and not any(c in user_input for c in "*?["):
+            user_input = f"*{user_input}"
+        user_input = user_input.replace("#", "?")
 
-            else:
+        pattern = (
+            user_input if any(c in user_input for c in "*?[")
+            else f"*{user_input}*"
+        )
+        pool = context.scene.objects if self.scope == 'SCENE' else selected_objects
 
-                bpy.ops.object.select_all(action='DESELECT')
+        candidates = [
+            obj for obj in pool
+            if fnmatch.fnmatchcase(obj.name, pattern) or (
+                self.data_flag
+                and getattr(obj, "data", None)
+                and fnmatch.fnmatchcase(obj.data.name, pattern)
+            )
+        ]
+
+        # -------------------------------------------------------
+
+        if self.mode == 'SEARCH':
+
+            if not candidates:
                 self.report({'INFO'}, "Nothing found.")
                 return {'CANCELLED'}
+
+            selected_names = []
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in candidates:
+                # Check visibility and selectability before selecting
+                if obj.visible_get() and not obj.hide_select:
+                    try:
+                        obj.select_set(True)
+                        selected_names.append(obj.name)
+                    except RuntimeError:
+                        pass
+
+            cand_names = [o.name for o in candidates]
+    
+            if selected_names:
+                msg = "Selected {} of {} found objects: {}".format(
+                    len(selected_names), len(cand_names), ", ".join(selected_names)
+                )
+            else:
+                msg = "Nothing selected (possibly due to visibility or selectability)."
+            
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
 
         # -------------------------------------------------------
         
         elif self.mode == 'RESEARCH':
-            candidates = []
-            for obj in context.selected_objects:
-                if self.new_name in obj.name:
-                    candidates.append(obj)
 
-            if candidates:
-                for obj in candidates:
-                    obj.name = obj.name.replace(self.new_name, self.substitute)
-                    if self.data_flag and obj.data is not None:
-                        obj.data.name = obj.name
-                self.report({'INFO'}, "Renamed {} objects".format(len(candidates)))
-                return {'FINISHED'}
-            else:
-                if context.selected_objects:
-                    self.report({'INFO'}, 'No object names in scene containing "{}"'.format(self.new_name))
-                else:
-                    self.report({'INFO'}, "Nothing selected in the viewport.")
+            if not candidates:
+                scope_str = "scene" if self.scope == 'SCENE' else "selection"
+                self.report(
+                    {'INFO'}, 
+                    f'No object names in {scope_str} matching "{user_input}"'
+                )
                 return {'CANCELLED'}
 
-
-    def invoke(self, context, event):
-        if context.active_object:
-            self.new_name = context.active_object.name
-        return context.window_manager.invoke_props_dialog(self, width=450)
+            replace_target = user_input.replace("*", "").replace("?", "")
+            renamed_objects = []
+            
+            if not replace_target:
+                self.report({'INFO'}, "Nothing to replace.")
+                return {'CANCELLED'}
+            
+            for obj in candidates:
+                if replace_target in obj.name:
+                    new_name = obj.name.replace(replace_target, self.substitute)
+                    
+                    changed = False
+                    if self.set_property(obj, "name", new_name):
+                        changed = True
+                        
+                    if self.data_flag:
+                        if self.set_property(obj.data, "name", new_name):
+                            changed = True
+                            
+                    if changed:
+                        renamed_objects.append(obj.name)
+            
+            if renamed_objects:
+                msg = "Renamed {} objects: {}".format(
+                    len(renamed_objects), ", ".join(renamed_objects)
+                )
+            else:
+                msg = "All objects skipped (possibly due to linked data or no matches)."
+            
+            self.report({'INFO'}, msg)
+            return {'FINISHED'}
 
     def check(self, context):
         return True
-    
+
+    def invoke(self, context, event):
+        self.new_name = name = context.active_object.name
+        name_clean = name.rstrip('0123456789')
+        if name_clean and name_clean != name:
+            self.new_name = name_clean[:-1] if name_clean[-1] in ".-_ " else name_clean
+
+        return context.window_manager.invoke_props_dialog(self, width=450)
+
     def draw(self, context):
         txt_name = "New Name" if self.mode == "RENAME" else "Search for"
-        txt_data = "Rename Data-Block" if self.mode != "SEARCH" else "Find Data-Block"
+        txt_data = (
+            "Rename Data-Block" if self.mode != "SEARCH" else "Search for Data-Block"
+        )
 
         layout = self.layout
         layout.row().prop(self, "mode", expand=True)
 
-        spl = layout.split(factor=.75, align=True)
-        spl.prop(self, "new_name", text=txt_name)
-        col = spl.column(align=True)
-        col.prop(self, "start", text="Start at:")
-        col.active = "#" in self.new_name
+        if self.mode != "RENAME":
+            layout.row().prop(self, "scope")
+        if self.mode == "RENAME":
+            spl = layout.split(factor=0.8, align=True)
+            spl.prop(self, "new_name", text=txt_name)
+            col = spl.column(align=True)
+            col.prop(self, "start", text="")
+            col.active = "#" in self.new_name
+        else:
+            layout.row().prop(self, "new_name", text=txt_name)
 
         if self.mode == "RESEARCH":
             rep = layout.row()
@@ -179,16 +293,18 @@ class VIEW3D_OT_viewport_rename(bpy.types.Operator):
 
 
 def draw_viewport_rename_obj_menu(self, context):
-    layout = self.layout 
+    layout = self.layout
     layout.separator()
-    layout.operator(VIEW3D_OT_viewport_rename.bl_idname, text="Viewport Rename",  icon='FONTPREVIEW')
+    layout.operator(VIEW3D_OT_viewport_rename.bl_idname,
+                    text="Viewport Rename", icon='FONTPREVIEW')
 
 
-# ------------------------------------------------------------------------
-#    Register, unregister and hotkeys
-# ------------------------------------------------------------------------
+# -------------------------------------------------------------------
+#    Registration & Shortcuts
+# -------------------------------------------------------------------
 
 addon_keymaps = []
+
 
 def register():
     addon_keymaps.clear()
@@ -197,9 +313,27 @@ def register():
     wm = bpy.context.window_manager
     kc = wm.keyconfigs.addon
     if kc:
-        km = wm.keyconfigs.addon.keymaps.new(name='3D View', space_type='VIEW_3D')
-        kmi = km.keymap_items.new(VIEW3D_OT_viewport_rename.bl_idname, type='R', value='PRESS', ctrl=True)
-        addon_keymaps.append((km, kmi))
+        km = wm.keyconfigs.addon.keymaps.new(
+            name='3D View', space_type='VIEW_3D'
+        )
+        
+        kmi_r = km.keymap_items.new(
+            VIEW3D_OT_viewport_rename.bl_idname,
+            type='R',
+            value='PRESS',
+            ctrl=True
+        )
+        kmi_r.properties.mode = 'RENAME'
+        addon_keymaps.append((km, kmi_r))
+        
+        kmi_f = km.keymap_items.new(
+            VIEW3D_OT_viewport_rename.bl_idname,
+            type='F',
+            value='PRESS',
+            ctrl=True
+        )
+        kmi_f.properties.mode = 'SEARCH'
+        addon_keymaps.append((km, kmi_f))
 
     bpy.types.VIEW3D_MT_object.append(draw_viewport_rename_obj_menu)
 
@@ -212,6 +346,7 @@ def unregister():
     addon_keymaps.clear()
 
     bpy.utils.unregister_class(VIEW3D_OT_viewport_rename)
+
 
 if __name__ == "__main__":
     register()
